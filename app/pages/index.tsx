@@ -5,123 +5,77 @@ import {
     AnchorProvider, BN, Program, utils, web3
 } from '@project-serum/anchor';
 import * as anchor from "@project-serum/anchor";
-import { Connection, PublicKey } from '@solana/web3.js';
+import { Connection, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Struct } from '@solana/web3.js';
 import { useAnchorWallet } from '@solana/wallet-adapter-react';
 import idl from "../../target/idl/realbox_smart_contract_solana.json";
 import { RealboxSmartContractSolana } from "../../target/types/realbox_smart_contract_solana";
-import {
-    TOKEN_PROGRAM_ID,
-    NATIVE_MINT,
-    MINT_SIZE,
-    createAssociatedTokenAccountInstruction,
-    getAssociatedTokenAddress,
-    createInitializeMintInstruction,
-} from "@solana/spl-token";
-import { findProgramAddressSync } from '@project-serum/anchor/dist/cjs/utils/pubkey';
-import MinimalSetup from "./minimal-setup";
-import { generateUint8ArrayFromSecretKey } from '../lib/helpers';
-
-const utf8 = utils.bytes.utf8;
+import { generateUint8ArrayFromSecretKey, getTokenAccounts } from '../lib/helpers';
+import { useEffect, useState } from 'react';
+import { accountOwnedByProgram } from '../lib/helpers';
+import * as borsh from 'borsh';
+import ButtonDeployVault from '../components/button-deploy-vault';
+import MintAndTransferToken from "../components/mint-transfer-token";
+import ButtonSetTreasury from "../components/set-treasury";
 
 const Home: NextPage = () => {
     const anchorWallet = useAnchorWallet();
-    // const mintKey: anchor.web3.Keypair = anchor.web3.Keypair.fromSecretKey(generateUint8ArrayFromSecretKey(process.env.NEXT_PUBLIC_PHANTOM_SECRETKEY));
-    const fromWallet = anchor.web3.Keypair.generate()
-    const mint = anchor.web3.Keypair.generate()
-    async function sendTransaction() {
+    const [provider, setProvider] = useState<AnchorProvider>();
+    const [program, setProgram] = useState<Program<RealboxSmartContractSolana>>();
+    const fromWallet: anchor.web3.Keypair = anchor.web3.Keypair.fromSecretKey(generateUint8ArrayFromSecretKey(process.env.NEXT_PUBLIC_PHANTOM_SECRETKEY));
+    // const fromWallet = anchor.web3.Keypair.generate()
+    const network = "http://127.0.0.1:8899";//"https://api.devnet.solana.com";
+    const connection = new Connection(network, "processed");
+    useEffect(() => {
         if (!anchorWallet) {
             return;
         }
-        const network = "http://127.0.0.1:8899";
-        const connection = new Connection(network, "processed");
         const provider = new anchor.AnchorProvider(connection, anchorWallet, anchor.AnchorProvider.defaultOptions());
-        const program = new anchor.Program(idl as any, idl.metadata.address, provider) as Program<RealboxSmartContractSolana>;//anchor.workspace.RealboxSmartContractSolana as Program<RealboxSmartContractSolana>;
-        const key = anchorWallet.publicKey;
-        console.log("key: ", key.toString());
-        try {
-            const associatedTokenAccount = await getAssociatedTokenAddress(
-                mint.publicKey,
-                fromWallet.publicKey
-            );
-            // const lamports: number = await program.provider.connection.getMinimumBalanceForRentExemption(
-            //     MINT_SIZE
-            // ); 
-            // const mint_tx1 = new anchor.web3.Transaction().add(
-            //     anchor.web3.SystemProgram.createAccount({
-            //         fromPubkey: key,
-            //         newAccountPubkey: mintKey.publicKey,
-            //         space: MINT_SIZE,
-            //         programId: program.programId,
-            //         lamports,
-            //     }),
-            //     createInitializeMintInstruction(
-            //         mintKey.publicKey, 0, key, key
-            //     ),
-            //     createAssociatedTokenAccountInstruction(
-            //         key, associatedTokenAccount, key, mintKey.publicKey
-            //     )
-            // );
+        const program = new anchor.Program(idl as any, idl.metadata.address, provider) as Program<RealboxSmartContractSolana>;
+        setProgram(program)
+        setProvider(provider);
+    }, [anchorWallet])
 
-            // const res = await provider.sendAndConfirm(mint_tx1, [mintKey]);
-            console.log("associatedTokenAccount: ", associatedTokenAccount.toString());
-            // const toATA = await getAssociatedTokenAddress(
-            //     mintKey.publicKey,
-            //     mintKey.publicKey,
-            // );
+    const getInfoByAddress = async () => {
+        if (!provider || !program) return;
+        const address = new PublicKey("49BKZDcrxBu2PHgvVhZCPJW51Pikb549bB3Sm3CvejDa");
+        const vaultName = "REB3";
+        let [realboxVault,] = await web3.PublicKey.findProgramAddressSync([Buffer.from(vaultName), fromWallet.publicKey.toBuffer()], program.programId);
 
-            // const mint_tx = new anchor.web3.Transaction().add(
-            //     createAssociatedTokenAccountInstruction(
-            //         key, toATA, mintKey.publicKey, mintKey.publicKey, program.programId
-            //     )
-            // );
+        const transfer = await program.provider.connection.getParsedAccountInfo(address);
+        console.log("transfer: ", transfer);
 
-            // Sends and create the transaction
-            // await provider.sendAndConfirm(mint_tx, []);
-            // await program.methods.mintToken().accounts({
-            //     mint: mintKey.publicKey,
-            //     tokenProgram: TOKEN_PROGRAM_ID,
-            //     tokenAccount: associatedTokenAccount,
-            //     authority: key,
-            // }).rpc();
-            await program.methods.mintToken(new BN(100)).accounts({
-                mint: mint.publicKey,
-                tokenProgram: TOKEN_PROGRAM_ID,
-                tokenAccount: associatedTokenAccount,
-                authority: fromWallet.publicKey,
-            }).signers([fromWallet]).rpc();
-            // console.log("mint_tx: ", mint_tx);
-            console.log("here")
-
-            // Executes our transfer smart contract 
-            // await program.methods.transferToken().accounts({
-            //     tokenProgram: TOKEN_PROGRAM_ID,
-            //     from: associatedTokenAccount,
-            //     signer: key,
-            //     to: toATA,
-            // }).rpc();
-
-            // Get minted token amount on the ATA for our anchor wallet
-            // const minted = (await program.provider.connection.getParsedAccountInfo(associatedTokenAccount) as any)?.value?.data?.parsed?.info?.tokenAmount?.amount;
-            // console.log("minted: ", minted);
-        } catch (err) {
-            console.log(err);
-        }
+        // const tx = await program.methods.getVaultInfo().accounts({
+        //     realboxVault: new PublicKey("4P1wGGQ75Pfk7nYLfgYQSGr5TJV6ruVhBd8cm93rXESs"),
+        // }).rpc();
     }
 
     return (
         <div className={styles.container}>
             <main className={styles.main}>
-                <h1 className={styles.title}>
-                    Welcome to <a href="https://nextjs.org">Next.js!</a>
-                </h1>
-                {/* <MinimalSetup /> */}
                 <div className={styles.walletButtons}>
                     <WalletMultiButton />
                     <WalletDisconnectButton />
                 </div>
 
                 <p className={styles.description}>
-                    <button onClick={sendTransaction}>Create Transaction</button>
+                    <MintAndTransferToken {...{
+                        provider,
+                        program,
+                        fromWallet
+                    }} />
+                    <p />
+                    <ButtonDeployVault {...{
+                        provider,
+                        program,
+                        fromWallet
+                    }} />
+                    <p />
+                    <button onClick={getInfoByAddress}>Get info by address</button>
+                    <ButtonSetTreasury {...{
+                        provider,
+                        program,
+                        fromWallet
+                    }} />
                 </p>
             </main>
         </div>

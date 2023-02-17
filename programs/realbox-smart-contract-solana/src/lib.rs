@@ -1,11 +1,14 @@
 // use anchor_lang::error::ErrorCode;
 use anchor_lang::prelude::*;
 use anchor_spl::token;
-use state::*;
 
+pub mod schema;
+pub use schema::*;
 pub mod errors;
 pub mod instructions;
-pub mod state;
+pub use instructions::*;
+
+pub mod utils;
 
 declare_id!("8dToPCpRXSbf36UkQknZMaMGx6iihVkSGJoK87mDweqf");
 
@@ -14,12 +17,6 @@ pub mod realbox_smart_contract_solana {
 
     use super::*;
     pub fn mint_token(ctx: Context<MintToken>, amount: u64) -> Result<()> {
-        msg!("authority: {:?}", ctx.accounts.authority.to_account_info());
-        msg!("mint: {:?}", ctx.accounts.mint.to_account_info());
-        msg!(
-            "token_account: {:?}",
-            ctx.accounts.token_account.to_account_info()
-        );
         // Create the MintTo struct for our context
         let cpi_accounts = token::MintTo {
             mint: ctx.accounts.mint.to_account_info(),
@@ -28,7 +25,6 @@ pub mod realbox_smart_contract_solana {
         };
 
         let cpi_program = ctx.accounts.token_program.to_account_info();
-        msg!("cpi_program: {:?}", cpi_program);
         // Create the CpiContent we need for the request
         let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
 
@@ -46,7 +42,12 @@ pub mod realbox_smart_contract_solana {
             to: ctx.accounts.to.to_account_info(),
             authority: ctx.accounts.signer.to_account_info(),
         };
-
+        msg!(
+            "authority account: {:?}",
+            ctx.accounts.signer.to_account_info()
+        );
+        msg!("from account: {:?}", ctx.accounts.from.to_account_info());
+        msg!("to account: {:?}", ctx.accounts.to.to_account_info());
         let cpi_program = ctx.accounts.token_program.to_account_info();
         // Create the CpiContent we need for the request
         let cpi_ctx = CpiContext::new(cpi_program, transfer_instruction);
@@ -54,5 +55,35 @@ pub mod realbox_smart_contract_solana {
         // Execute anchor's helper function to transfer tokens
         token::transfer(cpi_ctx, 5)?;
         Ok(())
+    }
+
+    pub fn initialize_mint_realbox_vault(ctx: Context<InitializeMintRealBoxVault>) -> Result<()> {
+        realbox_vault_factory::initialize_mint_realbox_vault(ctx)
+    }
+
+    pub fn deploy_vault(
+        ctx: Context<RealboxVaultInit>,
+        vault_token_name: String,
+        public_unit_price: u64,
+        min_supply: u64,
+        max_supply: u64,
+        private_start_time: u64,
+        public_start_time: u64,
+        end_time: u64,
+    ) -> Result<()> {
+        instructions::realbox_vault_factory::deploy_vault(
+            ctx,
+            vault_token_name,
+            public_unit_price,
+            min_supply,
+            max_supply,
+            private_start_time,
+            public_start_time,
+            end_time,
+        )
+    }
+
+    pub fn set_treasury(ctx: Context<RealboxVaultSetTreasury>, treasury_fee: u64) -> Result<()> {
+        realbox_vault_factory::set_treasury(ctx, treasury_fee)
     }
 }
