@@ -38,11 +38,13 @@ const Home: NextPage = () => {
     const getInfoByAddress = async () => {
         if (!provider || !program) return;
         const address = new PublicKey("49BKZDcrxBu2PHgvVhZCPJW51Pikb549bB3Sm3CvejDa");
-        const vaultName = "REB3";
-        let [realboxVault,] = await web3.PublicKey.findProgramAddressSync([Buffer.from(vaultName), fromWallet.publicKey.toBuffer()], program.programId);
+        const vaultName = "REE1";
+        let [realboxVault,] = await web3.PublicKey.findProgramAddressSync([Buffer.from(vaultName)], program.programId);
 
-        const transfer = await program.provider.connection.getParsedAccountInfo(address);
-        console.log("transfer: ", transfer);
+        // const transfer = await program.provider.connection.getParsedAccountInfo(address);
+        // console.log("transfer: ", transfer);
+        const account = await program.account.realboxVaultState.fetch(realboxVault);
+        console.log('account: ', account)
 
         // const tx = await program.methods.getVaultInfo().accounts({
         //     realboxVault: new PublicKey("4P1wGGQ75Pfk7nYLfgYQSGr5TJV6ruVhBd8cm93rXESs"),

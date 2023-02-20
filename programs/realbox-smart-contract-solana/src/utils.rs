@@ -5,6 +5,14 @@ pub fn current_timestamp() -> Option<i64> {
     Some(clock.unix_timestamp)
 }
 
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
+pub enum SalesChannels {
+    DirectOnchain,
+    DirectOffchain,
+    Indirect,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq)]
 pub enum CrowdFundingState {
     Uninitialized,
     Initialized,

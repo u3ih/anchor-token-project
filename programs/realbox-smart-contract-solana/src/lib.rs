@@ -10,7 +10,7 @@ pub use instructions::*;
 
 pub mod utils;
 
-declare_id!("8dToPCpRXSbf36UkQknZMaMGx6iihVkSGJoK87mDweqf");
+declare_id!("DxBDQNyfuZT7ueaZRQmnR3MQBTj9oevdut6qeURxyrN");
 
 #[program]
 pub mod realbox_smart_contract_solana {
@@ -64,23 +64,9 @@ pub mod realbox_smart_contract_solana {
     pub fn deploy_vault(
         ctx: Context<RealboxVaultInit>,
         vault_token_name: String,
-        public_unit_price: u64,
-        min_supply: u64,
-        max_supply: u64,
-        private_start_time: u64,
-        public_start_time: u64,
-        end_time: u64,
+        sales_info: SalesInfo,
     ) -> Result<()> {
-        instructions::realbox_vault_factory::deploy_vault(
-            ctx,
-            vault_token_name,
-            public_unit_price,
-            min_supply,
-            max_supply,
-            private_start_time,
-            public_start_time,
-            end_time,
-        )
+        instructions::realbox_vault_factory::deploy_vault(ctx, vault_token_name, sales_info)
     }
 
     pub fn set_treasury(ctx: Context<RealboxVaultSetTreasury>, treasury_fee: u64) -> Result<()> {

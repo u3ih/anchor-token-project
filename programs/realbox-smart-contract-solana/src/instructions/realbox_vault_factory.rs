@@ -2,6 +2,7 @@ use crate::errors::ErrorCode;
 use crate::schema::*;
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token};
+use std::mem::size_of;
 
 use crate::utils::*;
 #[derive(Accounts)]
@@ -28,8 +29,8 @@ pub struct RealboxVaultInit<'info> {
     #[account(
         init,
         payer = owner_address,
-        space = 8 + 4 + vault_token_name.len() + 32 * 5 + 8 * 7,
-        seeds = [vault_token_name.as_bytes(), owner_address.key().as_ref()],
+        space = 8 + 4 + vault_token_name.len() + 32 * 5 + 8 * 9 + 1 + size_of::<TxInfo>() * TxInfo::MAX_ITEMS_AMOUNT,
+        seeds = [vault_token_name.as_bytes()],
         bump
     )]
     pub realbox_vault: Account<'info, RealboxVaultState>,
@@ -59,19 +60,30 @@ pub fn initialize_mint_realbox_vault(ctx: Context<InitializeMintRealBoxVault>) -
     Ok(())
 }
 
+/**
+ * @notice deploy vault
+ * @param realx: address of RealboxNFT
+ * @param _salesInfo: token sales information
+ * @param _tokenInfo: vault token information
+ * @param _ownerAddress: address of vault owner
+ */
 pub fn deploy_vault(
     ctx: Context<RealboxVaultInit>,
     vault_token_name: String,
-    public_unit_price: u64,
-    min_supply: u64,
-    max_supply: u64,
-    private_start_time: u64,
-    public_start_time: u64,
-    end_time: u64,
+    sales_info: SalesInfo,
 ) -> Result<()> {
     msg!("init realbox vault");
     let current_time = current_timestamp().unwrap() as u64;
-    msg!("current_time: {}", current_time);
+    let SalesInfo {
+        base_token,
+        public_unit_price,
+        min_supply,
+        max_supply,
+        private_start_time,
+        public_start_time,
+        end_time,
+    } = sales_info;
+    
     require!(
         current_time < private_start_time,
         ErrorCode::PrivateTimeLowerThanCurrentTime
@@ -91,19 +103,25 @@ pub fn deploy_vault(
 
     let realbox_vault = &mut ctx.accounts.realbox_vault;
 
-    realbox_vault.base_token = ctx.accounts.base_token.clone().key();
     realbox_vault.token_program = ctx.accounts.token_program.clone().key();
     realbox_vault.realx = ctx.accounts.realx.clone().key();
     realbox_vault.owner_address = ctx.accounts.owner_address.key();
 
+    // sale info
+    realbox_vault.sales_info.base_token = ctx.accounts.base_token.clone().key();
+    realbox_vault.sales_info.public_unit_price = public_unit_price;
+    realbox_vault.sales_info.min_supply = min_supply;
+    realbox_vault.sales_info.max_supply = max_supply;
+    realbox_vault.sales_info.private_start_time = private_start_time;
+    realbox_vault.sales_info.public_start_time = public_start_time;
+    realbox_vault.sales_info.end_time = end_time;
+
     // vault info
+    realbox_vault.state = CrowdFundingState::Initialized;
+    realbox_vault.current_supply = 0;
+    realbox_vault.total_supply = 0;
     realbox_vault.vault_token_name = vault_token_name;
-    realbox_vault.public_unit_price = public_unit_price;
-    realbox_vault.min_supply = min_supply;
-    realbox_vault.max_supply = max_supply;
-    realbox_vault.private_start_time = private_start_time;
-    realbox_vault.public_start_time = public_start_time;
-    realbox_vault.end_time = end_time;
+
     Ok(())
 }
 
@@ -113,7 +131,6 @@ pub fn set_treasury(ctx: Context<RealboxVaultSetTreasury>, treasury_fee: u64) ->
     let realbox_vault = &mut ctx.accounts.realbox_vault;
     realbox_vault.treasury_address = ctx.accounts.treasury_address.key();
     realbox_vault.treasury_fee = treasury_fee;
-    msg!("treasury_fee: {}", treasury_fee);
     Ok(())
 }
 

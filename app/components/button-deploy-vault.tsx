@@ -10,8 +10,8 @@ const ButtonDeployVault = (props: any) => {
         if (!provider || !program) return;
         const mintKey = anchor.web3.Keypair.generate();
         const realboxNFT = anchor.web3.Keypair.generate();
-        const vaultName = "REEB7";
-        let [realboxVault,] = await anchor.web3.PublicKey.findProgramAddressSync([Buffer.from(vaultName), fromWallet.publicKey.toBuffer()], program.programId);
+        const vaultName = "REE1";
+        let [realboxVault,] = await anchor.web3.PublicKey.findProgramAddressSync([Buffer.from(vaultName)], program.programId);
         console.log("mintKey.publicKey: ", mintKey.publicKey.toString())
         console.log("realboxVault: ", realboxVault.toString());
         console.log("realboxNFT: ", realboxNFT.publicKey.toString())
@@ -22,17 +22,19 @@ const ButtonDeployVault = (props: any) => {
             systemProgram: anchor.web3.SystemProgram.programId,
             tokenProgram: TOKEN_PROGRAM_ID,
         }).signers([fromWallet, mintKey]).rpc();
-
-        const today = dayjs('2023-02-14').add(30, "minutes");
+        const today = dayjs('2023-02-22');
+        const saleInfo = {
+            publicUnitPrice: new BN(5), //public_unit_price: u64
+            minSupply: new BN(5), //min_supply: u64,
+            maxSupply: new BN(100), //max_supply: u64,
+            privateStartTime: new BN(today.unix()), //private_start_time: u64,
+            publicStartTime: new BN(today.add(1, "days").unix()), //public_start_time: u64,
+            endTime: new BN(today.add(2, "days").unix()), //end_time: u64,
+        }
 
         const tx = await program.methods.deployVault(
             vaultName, //vault_token_name
-            new BN(5), //public_unit_price: u64
-            new BN(5), //min_supply: u64,
-            new BN(100), //max_supply: u64,
-            new BN(today.unix()), //private_start_time: u64,
-            new BN(today.add(1, "days").unix()), //public_start_time: u64,
-            new BN(today.add(2, "days").unix()), //end_time: u64,
+            saleInfo
         ).accounts({
             mint: mintKey.publicKey,
             realboxVault: realboxVault,
