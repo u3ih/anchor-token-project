@@ -1,3 +1,4 @@
+use crate::errors::ErrorCode;
 use crate::utils::*;
 use anchor_lang::prelude::*;
 
@@ -10,20 +11,19 @@ use anchor_lang::prelude::*;
  */
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct TxInfo {
-    sender: Pubkey,
-    amount: u64,
-    unit_price: u64,
-    channel: SalesChannels,
-    uid: String,
+    pub sender: Pubkey,
+    pub amount: u64,
+    pub unit_price: u64,
+    pub channel: SalesChannels,
+    pub uid: String,
 }
 
 impl TxInfo {
-    pub const MAX_ITEMS_AMOUNT: usize = 100;
+    pub const MAX_ITEMS_AMOUNT: usize = 200;
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct SalesInfo {
-    pub base_token: Pubkey,
     pub public_unit_price: u64,
     pub min_supply: u64,
     pub max_supply: u64,
@@ -38,7 +38,7 @@ pub struct SalesInfo {
 * @param token_program: address of token vault
 * @param realx: address of RealboxNFT
 * @param state: state of Vault
-* @param tx_info: Transaction info
+* @param tx_infos: Transaction info
 
 * @param public_unit_price: price per vault token in public sale (in base token)
 * @param min_supply: the minimum amount of vault token sold for the crowdfunding to be success
@@ -55,11 +55,15 @@ pub struct RealboxVaultState {
     pub vault_token_name: String,
     pub owner_address: Pubkey,
     pub token_program: Pubkey,
+    pub mint_token: Pubkey,
+    pub mint_base: Pubkey,
     pub realx: Pubkey,
     pub state: CrowdFundingState,
-    pub tx_info: Vec<TxInfo>,
+    pub tx_infos: Vec<TxInfo>,
     pub sales_info: SalesInfo,
+    pub token_state: TokenState,
     // supply info
+    pub processed_token: u64,
     pub current_supply: u64,
     pub total_supply: u64,
     // treasury
@@ -98,25 +102,41 @@ impl RealboxVaultState {
         }
         return false;
     }
-}
 
-// #[derive(Accounts)]
-// pub struct MintToken<'info> {
-//     /// CHECK: This is the token that we want to mint
-//     #[account(mut)]
-//     pub mint: Account<'info, Mint>,
-//     /// CHECK: This is the token account that we want to mint tokens to
-//     #[account(
-//         mut,
-//         // constraint = realbox_vault.base_token == base_token.key()
-//     )]
-//     pub realbox_vault: Account<'info, RealboxVaultState>,
-//     pub base_token: Program<'info, Token>,
-//     /// CHECK: this is not dangerous besause we dont read or write from this account
-//     #[account(mut)]
-//     pub token_account: AccountInfo<'info>,
-//     /// CHECK: the authority of the mint account
-//     pub token_program: Program<'info, Token>,
-//     #[account(mut)]
-//     pub authority: Signer<'info>,
-// }
+    pub fn buy_token(
+        &mut self,
+        amount: u64,
+        price: u64,
+        channel: SalesChannels,
+        uid: String,
+    ) -> Result<()> {
+        require!(amount > 0, ErrorCode::InvalidAmount);
+        require!(
+            amount <= self.sales_info.max_supply - self.current_supply,
+            ErrorCode::AmountHigherRemainingSupply
+        );
+        let tx = TxInfo {
+            sender: self.owner_address,
+            amount,
+            unit_price: price,
+            channel: channel,
+            uid,
+        };
+        self.tx_infos.push(tx);
+        self.current_supply += amount;
+        Ok(())
+    }
+
+    pub fn unlocked(&mut self) -> Result<()> {
+        self.token_state = TokenState::Unlocked;
+        self.state = CrowdFundingState::Unfrozen;
+        Ok(())
+    }
+
+    pub fn check_locked(&self) -> bool {
+        if self.token_state == TokenState::Locked {
+            return true;
+        };
+        false
+    }
+}

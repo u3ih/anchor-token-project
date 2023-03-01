@@ -10,6 +10,18 @@ pub enum ErrorCode {
     PublicTimeLowerThanPrivateTime,
     #[msg("RealboxVaultFactory: publicStartTime must be lower than endTime")]
     EndTimeLowerThanPublicTime,
-    #[msg("RealboxVaultFactory: minSupply must not be higher than maxSupply")]
+    #[msg("RealboxVaultFactory: invalid supply")]
     InvalidSupply,
+    #[msg("RealboxVault: uid must not empty")]
+    UidMustNotEmpty,
+    #[msg("RealboxVault: invalid state")]
+    InvalidState,
+    #[msg("RealboxVault: invalid sales channel")]
+    InvalidSalesChannel,
+    #[msg("BuyToken: invalid amount")]
+    InvalidAmount,
+    #[msg("BuyToken: Amount must lower than remaining supply")]
+    AmountHigherRemainingSupply,
+    #[msg("RealboxVault: invalid transaction id")]
+    InvalidTransactionId,
 }

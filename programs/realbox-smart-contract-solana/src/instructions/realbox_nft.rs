@@ -1,3 +1,4 @@
+use crate::errors::ErrorCode;
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::program::invoke;
 use anchor_spl::token::mint_to;
@@ -22,10 +23,7 @@ pub mod realbox_nft {
             authority: ctx.accounts.payer.to_account_info(),
         };
         let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-        let result = mint_to(cpi_ctx, 1);
-        if let Err(_) = result {
-            return Err(error!(ErrorCode::MintFailed));
-        }
+        mint_to(cpi_ctx, 1)?;
         msg!("Token minted !!!");
 
         msg!("Metadata account creating:");
@@ -51,7 +49,7 @@ pub mod realbox_nft {
                 share: 0,
             },
         ];
-        let result = invoke(
+        invoke(
             &create_metadata_accounts_v2(
                 ctx.accounts.token_metadata_program.key(),
                 ctx.accounts.metadata.key(),
@@ -70,10 +68,7 @@ pub mod realbox_nft {
                 None,
             ),
             &accounts,
-        );
-        if let Err(_) = result {
-            return Err(error!(ErrorCode::MetadataCreateFailed));
-        }
+        )?;
         msg!("Metadata account created !!!");
         Ok(())
     }
@@ -109,13 +104,4 @@ pub struct MintNFT<'info> {
 
     /// CHECK: This is not dangerous because we don't read or write from this account
     pub rent: AccountInfo<'info>,
-}
-
-#[error_code]
-pub enum ErrorCode {
-    #[msg("Mint failed!")]
-    MintFailed,
-
-    #[msg("Metadata account create failed!")]
-    MetadataCreateFailed,
 }
