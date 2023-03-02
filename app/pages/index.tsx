@@ -14,11 +14,11 @@ import { useEffect, useState } from 'react';
 import { accountOwnedByProgram } from '../lib/helpers';
 import * as borsh from 'borsh';
 import ButtonDeployVault from '../components/button-deploy-vault';
-import MintAndTransferToken from "../components/mint-transfer-token";
 import ButtonSetTreasury from "../components/set-treasury";
-import AgentByToken from '../components/agent-by-token';
+import AgentByToken from '../components/agent-buy-token';
 import FinalizedToken from '../components/finalize';
 import ClaimOrRefundToken from '../components/claim-or-refund';
+import AgentReturnToken from '../components/agent-return-token';
 
 const Home: NextPage = () => {
     const anchorWallet = useAnchorWallet();
@@ -40,13 +40,14 @@ const Home: NextPage = () => {
 
     const getInfoByAddress = async () => {
         if (!provider || !program) return;
-        const vaultName = "REE10";
+        const vaultName = "REE8";
         let [realboxVault,] = await web3.PublicKey.findProgramAddressSync([Buffer.from(vaultName)], program.programId);
 
         // const transfer = await program.provider.connection.getParsedAccountInfo(address);
         // console.log("transfer: ", transfer);
         const account = await program.account.realboxVaultState.fetch(realboxVault);
         console.log('account: ', account)
+        console.log("account.totalSupply: ", account.totalSupply.toNumber());
         await getTokenAccounts("66iRaLdHM6rwWdfTrK8JABh8DrXkzBWMkxHpufAK9agc", connection);
         // const tx = await program.methods.getVaultInfo().accounts({
         //     realboxVault: new PublicKey("4P1wGGQ75Pfk7nYLfgYQSGr5TJV6ruVhBd8cm93rXESs"),
@@ -62,12 +63,6 @@ const Home: NextPage = () => {
                 </div>
 
                 <p className={styles.description}>
-                    {/* <MintAndTransferToken {...{
-                        provider,
-                        program,
-                        fromWallet
-                    }} /> */}
-                    {/* <p /> */}
                     <ButtonDeployVault {...{
                         provider,
                         program,
@@ -82,6 +77,12 @@ const Home: NextPage = () => {
                     }} />
                     <p />
                     <AgentByToken {...{
+                        provider,
+                        program,
+                        fromWallet
+                    }} />
+                    <p />
+                    <AgentReturnToken {...{
                         provider,
                         program,
                         fromWallet

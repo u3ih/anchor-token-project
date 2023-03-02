@@ -11,7 +11,7 @@ const ClaimOrRefundToken = (props: { provider: any, program: Program<RealboxSmar
 
     const handleClaimorRefund = async () => {
         if (!provider || !program) return;
-        const vaultName = "REE3";
+        const vaultName = "REE8";
         let [realboxVault,] = await web3.PublicKey.findProgramAddressSync([Buffer.from(vaultName)], program.programId);
         const realboxVaultData = await program.account.realboxVaultState.fetch(realboxVault);
         console.log("realboxVaultData: ", realboxVaultData);
@@ -26,18 +26,26 @@ const ClaimOrRefundToken = (props: { provider: any, program: Program<RealboxSmar
             realboxVaultData.ownerAddress
         );
 
+        const ATATreasuryAccount = await getAssociatedTokenAddress(
+            realboxVaultData.mintBase,
+            realboxVaultData.treasuryAddress
+        );
+
+
         const tx = await program.methods.claimOrRefund().accounts({
             mintToken: realboxVaultData.mintToken,
             mintBase: realboxVaultData.mintBase,
             tokenProgram: TOKEN_PROGRAM_ID,
             baseTokenAccount: ATABaseToken,
+            treasuryAccount: ATATreasuryAccount,
+            treasuryAddress: realboxVaultData.treasuryAddress,
             associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-            systemProgram: anchor.web3.SystemProgram.programId,
+            systemProgram: SystemProgram.programId,
             realboxVault: realboxVault,
             tokenAccount: ATATokenMint,
             ownerAddress: fromWallet.publicKey,
         }).signers([fromWallet]).rpc();
-        console.log("tx: ", tx);
+        // console.log("tx: ", tx);
     }
     return (
         <>

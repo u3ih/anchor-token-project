@@ -6,7 +6,7 @@ use anchor_spl::token::TokenAccount;
 use anchor_spl::token::{self, Mint, Token};
 
 #[derive(Accounts)]
-pub struct AgentByToken<'info> {
+pub struct AgentActionToken<'info> {
     #[account(
         mut,
         has_one = owner_address,
@@ -54,7 +54,7 @@ pub struct ClaimOrRefund<'info> {
         has_one = mint_token,
         has_one = mint_base
     )]
-    pub realbox_vault: Account<'info, RealboxVaultState>,
+    pub realbox_vault: Box<Account<'info, RealboxVaultState>>,
     pub token_program: Program<'info, Token>,
     /// CHECK: This is the account base token
     #[account(
@@ -63,7 +63,7 @@ pub struct ClaimOrRefund<'info> {
         associated_token::mint = mint_base,
         associated_token::authority = owner_address
     )]
-    pub base_token_account: Account<'info, TokenAccount>,
+    pub base_token_account: Box<Account<'info, TokenAccount>>,
     /// CHECK: This is the account receive token
     #[account(
         init_if_needed,
@@ -71,7 +71,18 @@ pub struct ClaimOrRefund<'info> {
         associated_token::mint = mint_token,
         associated_token::authority = owner_address
     )]
-    pub token_account: Account<'info, TokenAccount>,
+    pub token_account: Box<Account<'info, TokenAccount>>,
+    /// CHECK: This is the account receive fee
+    #[account(
+        init_if_needed,
+        payer = owner_address,
+        associated_token::mint = mint_base,
+        associated_token::authority = treasury_address
+    )]
+    pub treasury_account: Box<Account<'info, TokenAccount>>,
+    /// CHECK: this is not dangerous besause we dont read or write from this account
+    #[account(mut)]
+    pub treasury_address: UncheckedAccount<'info>,
     /// CHECK: this is not dangerous besause we dont read or write from this account
     pub associated_token_program: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
@@ -107,9 +118,9 @@ pub fn mint_token_to<'info>(
  * @dev Caller must have trusted agent role.
  */
 pub fn agent_buy_token(
-    ctx: Context<AgentByToken>,
+    ctx: Context<AgentActionToken>,
     amount: u64,
-    price: u64,
+    price: f64,
     channel: SalesChannels,
     uid: String,
 ) -> Result<()> {
@@ -128,6 +139,7 @@ pub fn agent_buy_token(
     realbox_vault.buy_token(amount, price, channel, uid)?;
 
     if channel == SalesChannels::Indirect {
+        realbox_vault.processed_token += amount;
         mint_token_to(
             ctx.accounts.mint_token.to_account_info(),
             ctx.accounts.token_account.to_account_info(),
@@ -177,14 +189,7 @@ pub fn claim_or_refund(ctx: Context<ClaimOrRefund>) -> Result<()> {
     let mut processed_token = realbox_vault.processed_token.clone();
     let treasury_fee = realbox_vault.treasury_fee;
     let mut total_refund_token = 0;
-
-    mint_token_to(
-        mint_token.to_account_info(),
-        ctx.accounts.token_account.to_account_info(),
-        ctx.accounts.owner_address.to_account_info(),
-        ctx.accounts.token_program.to_account_info(),
-        total_supply,
-    )?;
+    let mut total_claim_token = 0;
 
     for tx in realbox_vault.tx_infos.iter() {
         let mut claim_token = 0;
@@ -197,47 +202,67 @@ pub fn claim_or_refund(ctx: Context<ClaimOrRefund>) -> Result<()> {
         } else {
             refund_token = tx.amount;
         }
-
         if refund_token > 0 && tx.channel == SalesChannels::DirectOnchain {
-            total_refund_token += refund_token * tx.unit_price;
+            total_refund_token += (refund_token as f64 * tx.unit_price) as u64;
         }
-        if claim_token > 0 && tx.channel == SalesChannels::DirectOnchain {
-            collect_amount += claim_token * tx.unit_price;
+        if claim_token > 0 {
+            if tx.channel == SalesChannels::DirectOnchain {
+                collect_amount += (claim_token as f64 * tx.unit_price) as u64;
+            }
+            if tx.channel != SalesChannels::Indirect {
+                total_claim_token += claim_token;
+                processed_token += tx.amount;
+            }
         }
-        processed_token += tx.amount;
+    }
+
+    if collect_amount > 0 && treasury_fee > 0 {
+        let fee_amount: u64 = (collect_amount * treasury_fee) / 10000;
+        let transfer_instruction = token::Transfer {
+            from: ctx.accounts.base_token_account.to_account_info(),
+            to: ctx.accounts.treasury_account.to_account_info(),
+            authority: ctx.accounts.owner_address.to_account_info(),
+        };
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        // Create the CpiContent we need for the request
+        let cpi_ctx = CpiContext::new(cpi_program, transfer_instruction);
+        token::transfer(cpi_ctx, fee_amount)?;
+    }
+
+    mint_token_to(
+        mint_token.to_account_info(),
+        ctx.accounts.token_account.to_account_info(),
+        ctx.accounts.owner_address.to_account_info(),
+        ctx.accounts.token_program.to_account_info(),
+        total_claim_token,
+    )?;
+
+    if total_refund_token > 0 {
+        let transfer_instruction = token::Transfer {
+            from: ctx.accounts.base_token_account.to_account_info(),
+            to: ctx.accounts.treasury_account.to_account_info(),
+            authority: ctx.accounts.owner_address.to_account_info(),
+        };
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        // Create the CpiContent we need for the request
+        let cpi_ctx = CpiContext::new(cpi_program, transfer_instruction);
+        token::transfer(cpi_ctx, total_refund_token)?;
     }
 
     realbox_vault.processed_token = processed_token;
 
-    if collect_amount > 0 && treasury_fee > 0 {
-        let fee_amount: u64 = (collect_amount * treasury_fee) / 10000;
-        total_refund_token += fee_amount;
-        collect_amount -= fee_amount;
-    }
-    if collect_amount > 0 {
-        total_refund_token += collect_amount;
-    }
-
-    // refund to admin
-    mint_token_to(
-        ctx.accounts.mint_base.to_account_info(),
-        ctx.accounts.base_token_account.to_account_info(),
-        ctx.accounts.owner_address.to_account_info(),
-        ctx.accounts.token_program.to_account_info(),
-        total_refund_token,
-    )?;
-
     Ok(())
 }
 
-pub fn agent_return_token(ctx: Context<RealboxVaultInfo>, amount: u64, tx_id: usize) -> Result<()> {
+pub fn agent_return_token(ctx: Context<AgentActionToken>, amount: u64, tx_id: u16) -> Result<()> {
     let realbox_vault = &mut ctx.accounts.realbox_vault;
+    let idx = tx_id as usize;
     let state = realbox_vault.current_state();
     let current_supply = &mut realbox_vault.current_supply.clone();
 
     let tx_infos = &mut realbox_vault.tx_infos;
 
-    require!(tx_id < tx_infos.len(), ErrorCode::InvalidTransactionId);
+    require!(idx < tx_infos.len(), ErrorCode::InvalidTransactionId);
 
     require!(
         state == CrowdFundingState::PrivateStarted
@@ -245,7 +270,7 @@ pub fn agent_return_token(ctx: Context<RealboxVaultInfo>, amount: u64, tx_id: us
             || state == CrowdFundingState::Ended,
         ErrorCode::InvalidState
     );
-    let tx_info = &mut tx_infos[tx_id];
+    let tx_info = &mut tx_infos[idx];
     require!(
         amount > 0 && amount <= tx_info.amount,
         ErrorCode::InvalidAmount
@@ -258,46 +283,16 @@ pub fn agent_return_token(ctx: Context<RealboxVaultInfo>, amount: u64, tx_id: us
     tx_info.amount -= amount;
     *current_supply -= amount;
     if tx_info.channel == SalesChannels::Indirect {
-        // vaultToken.burnFrom(msg.sender, _amount);
+        let burn_instruction = CpiContext::new(
+            ctx.accounts.token_program.to_account_info(),
+            token::Burn {
+                from: ctx.accounts.token_account.to_account_info(),
+                mint: ctx.accounts.mint_token.to_account_info(),
+                authority: ctx.accounts.owner_address.to_account_info(),
+            },
+        );
+        token::burn(burn_instruction, amount)?;
+        realbox_vault.processed_token -= amount;
     }
     Ok(())
 }
-
-// /**
-//      * @notice Claim profit
-//      * @param _profitId: profit id to claim
-//      */
-// function claimProfit(uint256 _profitId) external nonReentrant onlyState(CrowdFundingState.Unfrozen) {
-//     ProfitInfo storage profitInfo = _profitInfo[_profitId];
-//     require(profitInfo.amountPerUnit > 0, 'RealboxVault: Invalid profit id');
-//     UserInfo storage userInfo = _userInfo[msg.sender][_profitId];
-//     require(!userInfo.claimed, 'RealboxVault: Profit claimed');
-//     uint256 balance = vaultToken.balanceOfAt(msg.sender, _profitId);
-//     require(balance > 0, 'RealboxVault: No token at snapshot');
-//     userInfo.amount = balance.mul(profitInfo.amountPerUnit);
-//     userInfo.claimed = true;
-//     profitInfo.token.safeTransfer(address(msg.sender), userInfo.amount);
-//     emit ClaimProfit(_profitId, msg.sender, userInfo.amount);
-// }
-
-// /**
-//  * @notice Share new profit
-//  * @param _token: address of shared token
-//  * @param _amount: amount of shared token
-//  * @dev Owner must have allowance for this contract of at least `_amount`.
-//  */
-// function shareProfit(IERC20 _token, uint256 _amount) external onlyOwner onlyState(CrowdFundingState.Unfrozen) {
-//     lastProfitId = vaultToken.snapshot();
-//     _token.safeTransferFrom(address(msg.sender), address(this), _amount);
-//     _profitInfo[lastProfitId] = ProfitInfo(_token, _amount.div(vaultToken.totalSupply()));
-//     emit ShareProfit(lastProfitId, address(_token), _amount);
-// }
-
-// /**
-//  * @notice Withdraw RealboxNFT items from vault
-//  * @param _tokenId: id of token to withdraw
-//  */
-// function withdrawNft(uint256 _tokenId) external onlyOwner {
-//     realx.safeTransferFrom(address(this), msg.sender, _tokenId);
-//     emit AdminWithdrawNft(address(realx), _tokenId);
-// }

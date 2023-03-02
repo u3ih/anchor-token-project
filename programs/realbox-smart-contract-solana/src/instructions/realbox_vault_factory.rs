@@ -86,7 +86,6 @@ pub fn deploy_vault(
     treasury_fee: u64,
     sales_info: SalesInfo,
 ) -> Result<()> {
-    msg!("init realbox vault");
     let current_time = current_timestamp().unwrap() as u64;
     let SalesInfo {
         public_unit_price,
@@ -143,7 +142,6 @@ pub fn deploy_vault(
 }
 
 pub fn set_treasury(ctx: Context<RealboxVaultSetTreasury>, treasury_fee: u64) -> Result<()> {
-    msg!("update realbox vault treasury");
     require!(treasury_fee <= 10000, ErrorCode::TreasuryFeeTooBig);
     let realbox_vault = &mut ctx.accounts.realbox_vault;
     realbox_vault.treasury_address = ctx.accounts.treasury_address.key();

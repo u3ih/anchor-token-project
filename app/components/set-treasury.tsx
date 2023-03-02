@@ -10,7 +10,7 @@ const ButtonSetTreasury = (props: { provider: any, program: Program<RealboxSmart
     const mintKey = anchor.web3.Keypair.generate();
     const setTreasury = async () => {
         if (!provider || !program) return;
-        const vaultName = "REE10";
+        const vaultName = "REE8";
         let [realboxVault,] = await web3.PublicKey.findProgramAddressSync([Buffer.from(vaultName)], program.programId);
         console.log("realboxVault: ", realboxVault);
         const tx = await program.methods.setTreasury(

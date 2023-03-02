@@ -10,7 +10,7 @@ const ButtonDeployVault = (props: any) => {
         if (!provider || !program) return;
         const mintKey = anchor.web3.Keypair.generate();
         const realboxNFT = anchor.web3.Keypair.generate();
-        const vaultName = "REE3";
+        const vaultName = "REE8";
         let [realboxVault,] = await anchor.web3.PublicKey.findProgramAddressSync([Buffer.from(vaultName)], program.programId);
 
         const associatedTokenAccount = await getAssociatedTokenAddress(
@@ -27,7 +27,7 @@ const ButtonDeployVault = (props: any) => {
             systemProgram: anchor.web3.SystemProgram.programId,
             tokenProgram: TOKEN_PROGRAM_ID,
         }).signers([fromWallet, mintKey]).rpc();
-        const today = dayjs('2023-03-01');
+        const today = dayjs('2023-03-03');
         const saleInfo = {
             publicUnitPrice: new BN(0.5 + LAMPORTS_PER_SOL), //public_unit_price: u64
             minSupply: new BN(5 * LAMPORTS_PER_SOL), //min_supply: u64,
@@ -51,7 +51,8 @@ const ButtonDeployVault = (props: any) => {
             tokenProgram: TOKEN_PROGRAM_ID,
             ownerAddress: fromWallet.publicKey,
         }).signers([fromWallet]).rpc();
-        console.log("tx: ", tx);
+        console.log("mintKey.publicKey: ", mintKey.publicKey.toString());
+        // console.log("tx: ", tx);
 
         // Get minted token amount on the ATA for our anchor wallet
 

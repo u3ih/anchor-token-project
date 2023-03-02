@@ -13,13 +13,13 @@ use anchor_lang::prelude::*;
 pub struct TxInfo {
     pub sender: Pubkey,
     pub amount: u64,
-    pub unit_price: u64,
+    pub unit_price: f64,
     pub channel: SalesChannels,
     pub uid: String,
 }
 
 impl TxInfo {
-    pub const MAX_ITEMS_AMOUNT: usize = 200;
+    pub const MAX_ITEMS_AMOUNT: usize = 100;
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
@@ -106,7 +106,7 @@ impl RealboxVaultState {
     pub fn buy_token(
         &mut self,
         amount: u64,
-        price: u64,
+        price: f64,
         channel: SalesChannels,
         uid: String,
     ) -> Result<()> {
