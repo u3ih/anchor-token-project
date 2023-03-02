@@ -111,10 +111,10 @@ pub fn mint_token_to<'info>(
 
 /**
  * @notice Buy vault token through agents
- * @param _amount: amount of vault token to buy
- * @param _price: price of vault token
- * @param _channel: sales channel, must be Indirect or DirectOffchain
- * @param _uid: user identity
+ * @param amount: amount of vault token to buy
+ * @param price: price of vault token
+ * @param channel: sales channel, must be Indirect or DirectOffchain
+ * @param uid: user identity
  * @dev Caller must have trusted agent role.
  */
 pub fn agent_buy_token(
@@ -176,9 +176,20 @@ pub fn finalize(ctx: Context<RealboxVaultInfo>, _total_supply: u64) -> Result<()
     Ok(())
 }
 
+pub fn unlock_token(ctx: Context<RealboxVaultInfo>) -> Result<()> {
+    let realbox_vault = &mut ctx.accounts.realbox_vault;
+    require!(
+        realbox_vault.only_state(CrowdFundingState::Finalized),
+        ErrorCode::InvalidState
+    );
+    realbox_vault.token_state = TokenState::Unlocked;
+    Ok(())
+}
+
 pub fn claim_or_refund(ctx: Context<ClaimOrRefund>) -> Result<()> {
     let realbox_vault = &mut ctx.accounts.realbox_vault;
     let mint_token = ctx.accounts.mint_token.clone();
+    require!(!realbox_vault.check_locked(), ErrorCode::TokenLocked);
     require!(
         realbox_vault.only_state(CrowdFundingState::Finalized),
         ErrorCode::InvalidState
@@ -256,6 +267,7 @@ pub fn claim_or_refund(ctx: Context<ClaimOrRefund>) -> Result<()> {
 
 pub fn agent_return_token(ctx: Context<AgentActionToken>, amount: u64, tx_id: u16) -> Result<()> {
     let realbox_vault = &mut ctx.accounts.realbox_vault;
+    require!(!realbox_vault.check_locked(), ErrorCode::TokenLocked);
     let idx = tx_id as usize;
     let state = realbox_vault.current_state();
     let current_supply = &mut realbox_vault.current_supply.clone();
@@ -282,6 +294,7 @@ pub fn agent_return_token(ctx: Context<AgentActionToken>, amount: u64, tx_id: u1
     );
     tx_info.amount -= amount;
     *current_supply -= amount;
+
     if tx_info.channel == SalesChannels::Indirect {
         let burn_instruction = CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
@@ -294,5 +307,6 @@ pub fn agent_return_token(ctx: Context<AgentActionToken>, amount: u64, tx_id: u1
         token::burn(burn_instruction, amount)?;
         realbox_vault.processed_token -= amount;
     }
+
     Ok(())
 }

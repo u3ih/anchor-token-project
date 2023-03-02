@@ -24,4 +24,6 @@ pub enum ErrorCode {
     AmountHigherRemainingSupply,
     #[msg("RealboxVault: invalid transaction id")]
     InvalidTransactionId,
+    #[msg("TokenVault: Token locked")]
+    TokenLocked,
 }

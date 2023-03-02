@@ -55,6 +55,10 @@ pub mod realbox_smart_contract_solana {
         realbox_vault::finalize(ctx, total_supply)
     }
 
+    pub fn unlock_token(ctx: Context<RealboxVaultInfo>) -> Result<()> {
+        realbox_vault::unlock_token(ctx)
+    }
+
     pub fn claim_or_refund(ctx: Context<ClaimOrRefund>) -> Result<()> {
         realbox_vault::claim_or_refund(ctx)
     }

@@ -8,11 +8,11 @@ const FinalizedToken = (props: { provider: any, program: Program<RealboxSmartCon
     const { provider, program, fromWallet } = props;
     const handleFinalized = async () => {
         if (!provider || !program) return;
-        const vaultName = "REE8";
+        const vaultName = "REE1";
         let [realboxVault,] = await web3.PublicKey.findProgramAddressSync([Buffer.from(vaultName)], program.programId);
 
         const tx = await program.methods.finalize(
-            new BN(15 * LAMPORTS_PER_SOL), // totalSupply
+            new BN(110 * LAMPORTS_PER_SOL), // totalSupply
         ).accounts({
             realboxVault: realboxVault,
             ownerAddress: fromWallet.publicKey,

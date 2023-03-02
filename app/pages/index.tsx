@@ -19,6 +19,7 @@ import AgentByToken from '../components/agent-buy-token';
 import FinalizedToken from '../components/finalize';
 import ClaimOrRefundToken from '../components/claim-or-refund';
 import AgentReturnToken from '../components/agent-return-token';
+import UnlockToken from '../components/unlock-token';
 
 const Home: NextPage = () => {
     const anchorWallet = useAnchorWallet();
@@ -26,7 +27,7 @@ const Home: NextPage = () => {
     const [program, setProgram] = useState<Program<RealboxSmartContractSolana>>();
     const fromWallet: anchor.web3.Keypair = anchor.web3.Keypair.fromSecretKey(generateUint8ArrayFromSecretKey(process.env.NEXT_PUBLIC_PHANTOM_SECRETKEY));
     // const fromWallet = anchor.web3.Keypair.generate()
-    const network = "http://127.0.0.1:8899";//"https://api.devnet.solana.com";
+    const network = "https://api.devnet.solana.com";//"https://api.devnet.solana.com"; "http://127.0.0.1:8899"
     const connection = new Connection(network, "processed");
     useEffect(() => {
         if (!anchorWallet) {
@@ -40,7 +41,7 @@ const Home: NextPage = () => {
 
     const getInfoByAddress = async () => {
         if (!provider || !program) return;
-        const vaultName = "REE8";
+        const vaultName = "REE1";
         let [realboxVault,] = await web3.PublicKey.findProgramAddressSync([Buffer.from(vaultName)], program.programId);
 
         // const transfer = await program.provider.connection.getParsedAccountInfo(address);
@@ -95,6 +96,12 @@ const Home: NextPage = () => {
                     }} />
                     <p />
                     <ClaimOrRefundToken {...{
+                        provider,
+                        program,
+                        fromWallet
+                    }} />
+                    <p />
+                    <UnlockToken {...{
                         provider,
                         program,
                         fromWallet
