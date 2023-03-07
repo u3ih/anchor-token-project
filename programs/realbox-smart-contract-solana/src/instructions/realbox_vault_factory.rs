@@ -75,9 +75,9 @@ pub fn initialize_mint_realbox_vault(ctx: Context<InitializeMintRealBoxVault>) -
 /**
  * @notice deploy vault
  * @param realx: address of RealboxNFT
- * @param _salesInfo: token sales information
- * @param _tokenInfo: vault token information
- * @param _ownerAddress: address of vault owner
+ * @param salesInfo: token sales information
+ * @param tokenInfo: vault token information
+ * @param ownerAddress: address of vault owner
  */
 pub fn deploy_vault(
     ctx: Context<RealboxVaultInit>,

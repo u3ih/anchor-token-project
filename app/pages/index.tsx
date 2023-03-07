@@ -20,6 +20,7 @@ import FinalizedToken from '../components/finalize';
 import ClaimOrRefundToken from '../components/claim-or-refund';
 import AgentReturnToken from '../components/agent-return-token';
 import UnlockToken from '../components/unlock-token';
+import MintNft from '../components/mint-nft';
 
 const Home: NextPage = () => {
     const anchorWallet = useAnchorWallet();
@@ -41,7 +42,7 @@ const Home: NextPage = () => {
 
     const getInfoByAddress = async () => {
         if (!provider || !program) return;
-        const vaultName = "REE1";
+        const vaultName = "REE10";
         let [realboxVault,] = await web3.PublicKey.findProgramAddressSync([Buffer.from(vaultName)], program.programId);
 
         // const transfer = await program.provider.connection.getParsedAccountInfo(address);
@@ -49,6 +50,10 @@ const Home: NextPage = () => {
         const account = await program.account.realboxVaultState.fetch(realboxVault);
         console.log('account: ', account)
         console.log("account.totalSupply: ", account.totalSupply.toNumber());
+        const currentSupply = (account?.txInfos as any)?.reduce((prev: any, tx: { amount: { toNumber: () => any; }; }) => {
+            return prev + tx.amount.toNumber()
+        }, 0)
+        console.log("currentSupply: ", currentSupply);
         await getTokenAccounts("66iRaLdHM6rwWdfTrK8JABh8DrXkzBWMkxHpufAK9agc", connection);
         // const tx = await program.methods.getVaultInfo().accounts({
         //     realboxVault: new PublicKey("4P1wGGQ75Pfk7nYLfgYQSGr5TJV6ruVhBd8cm93rXESs"),
@@ -64,6 +69,13 @@ const Home: NextPage = () => {
                 </div>
 
                 <p className={styles.description}>
+                    <MintNft {...{
+                        provider,
+                        program,
+                        fromWallet
+                    }} />
+                    <p />
+
                     <ButtonDeployVault {...{
                         provider,
                         program,

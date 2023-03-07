@@ -11,7 +11,7 @@ const UnlockToken = (props: { provider: any, program: Program<RealboxSmartContra
 
     const UnlockToken = async () => {
         if (!provider || !program) return;
-        const vaultName = "REE1";
+        const vaultName = "REE10";
         let [realboxVault,] = await web3.PublicKey.findProgramAddressSync([Buffer.from(vaultName)], program.programId);
 
         const tx = await program.methods.unlockToken().accounts({

@@ -10,7 +10,7 @@ const ButtonDeployVault = (props: any) => {
         if (!provider || !program) return;
         const mintKey = anchor.web3.Keypair.generate();
         const realboxNFT = anchor.web3.Keypair.generate();
-        const vaultName = "REE1";
+        const vaultName = "REE10";
         let [realboxVault,] = await anchor.web3.PublicKey.findProgramAddressSync([Buffer.from(vaultName)], program.programId);
 
         const associatedTokenAccount = await getAssociatedTokenAddress(
@@ -27,7 +27,7 @@ const ButtonDeployVault = (props: any) => {
             systemProgram: anchor.web3.SystemProgram.programId,
             tokenProgram: TOKEN_PROGRAM_ID,
         }).signers([fromWallet, mintKey]).rpc();
-        const today = dayjs().add(5, "minute");
+        const today = dayjs().add(1, "minute");
         const saleInfo = {
             publicUnitPrice: new BN(0.5 + LAMPORTS_PER_SOL), //public_unit_price: u64
             minSupply: new BN(5 * LAMPORTS_PER_SOL), //min_supply: u64,

@@ -126,6 +126,7 @@ pub fn agent_buy_token(
 ) -> Result<()> {
     require!(uid.len() > 0, ErrorCode::UidMustNotEmpty);
     let realbox_vault = &mut ctx.accounts.realbox_vault;
+
     let state = realbox_vault.current_state();
     require!(
         state == CrowdFundingState::PrivateStarted || state == CrowdFundingState::PublicStarted,
@@ -135,6 +136,10 @@ pub fn agent_buy_token(
         channel == SalesChannels::Indirect || channel == SalesChannels::DirectOffchain,
         ErrorCode::InvalidSalesChannel,
     );
+
+    if channel == SalesChannels::Indirect {
+        require!(!realbox_vault.check_locked(), ErrorCode::TokenLocked);
+    }
 
     realbox_vault.buy_token(amount, price, channel, uid)?;
 
@@ -267,10 +272,11 @@ pub fn claim_or_refund(ctx: Context<ClaimOrRefund>) -> Result<()> {
 
 pub fn agent_return_token(ctx: Context<AgentActionToken>, amount: u64, tx_id: u16) -> Result<()> {
     let realbox_vault = &mut ctx.accounts.realbox_vault;
-    require!(!realbox_vault.check_locked(), ErrorCode::TokenLocked);
+
     let idx = tx_id as usize;
     let state = realbox_vault.current_state();
     let current_supply = &mut realbox_vault.current_supply.clone();
+    let is_locked = realbox_vault.check_locked().clone();
 
     let tx_infos = &mut realbox_vault.tx_infos;
 
@@ -292,6 +298,11 @@ pub fn agent_return_token(ctx: Context<AgentActionToken>, amount: u64, tx_id: u1
             || tx_info.channel == SalesChannels::DirectOffchain,
         ErrorCode::InvalidSalesChannel
     );
+
+    if tx_info.channel == SalesChannels::Indirect {
+        require!(!is_locked, ErrorCode::TokenLocked);
+    }
+
     tx_info.amount -= amount;
     *current_supply -= amount;
 

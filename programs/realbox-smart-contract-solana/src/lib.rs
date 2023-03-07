@@ -1,4 +1,3 @@
-// use anchor_lang::error::ErrorCode;
 use crate::utils::*;
 use anchor_lang::prelude::*;
 
@@ -69,5 +68,15 @@ pub mod realbox_smart_contract_solana {
         tx_id: u16,
     ) -> Result<()> {
         realbox_vault::agent_return_token(ctx, amount, tx_id)
+    }
+
+    pub fn mint_nft(
+        ctx: Context<MintNFT>,
+        creator_key: Pubkey,
+        uri: String,
+        title: String,
+        symbol: String,
+    ) -> Result<()> {
+        realbox_nft::mint_nft(ctx, creator_key, uri, title, symbol)
     }
 }

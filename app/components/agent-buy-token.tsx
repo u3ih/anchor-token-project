@@ -11,7 +11,7 @@ const AgentByToken = (props: { provider: any, program: Program<RealboxSmartContr
     const toWallet = web3.Keypair.generate();
     const AgentByToken = async () => {
         if (!provider || !program) return;
-        const vaultName = "REE1";
+        const vaultName = "REE10";
         let [realboxVault,] = await web3.PublicKey.findProgramAddressSync([Buffer.from(vaultName)], program.programId);
         const realboxVaultData = await program.account.realboxVaultState.fetch(realboxVault);
         console.log("realboxVaultData: ", realboxVaultData);
@@ -22,7 +22,7 @@ const AgentByToken = (props: { provider: any, program: Program<RealboxSmartContr
         );
 
         const tx = await program.methods.agentBuyToken(
-            new BN(20 * LAMPORTS_PER_SOL), // amount
+            new BN(25 * LAMPORTS_PER_SOL), // amount
             0.2, // prices
             { indirect: {} }, //channel // indirect, directOffchain
             "638727261558635d1da04b35", // uid
